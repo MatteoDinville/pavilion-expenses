@@ -119,7 +119,7 @@ async def extract_only(file: UploadFile = File(...)):
             try:
                 logger.info(f"Tentative {attempt}/3 de génération de contenu via Gemini...")
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-3.6-flash",
                     contents=[pdf_file, prompt],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
