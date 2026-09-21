@@ -87,6 +87,9 @@ class ValidationPayload(BaseModel):
 async def serve_frontend():
     return Path("index.html").read_text(encoding="utf-8")
 
+@app.get("/favicon.svg")
+async def serve_favicon_svg():
+    return FileResponse("favicon.svg", media_type="image/svg+xml")
 
 # --- 1. Route d'extraction pure via Gemini ---
 @app.post("/api/extract-only")
@@ -155,8 +158,19 @@ async def extract_only(file: UploadFile = File(...)):
         return {"status": "success", "extractions": extractions}
 
     except Exception as e:
-        logger.error(f"Erreur lors de l'extraction : {str(e)}")
+        error_text = str(e)
+        logger.error(f"Erreur lors de l'extraction : {error_text}")
         sentry_sdk.capture_exception(e)  # Transmet la stacktrace à Sentry
+
+        if "RESOURCE_EXHAUSTED" in error_text or "429" in error_text:
+            logger.warning("Quota Gemini atteint : limite d'extraction dépassée.")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise HTTPException(
+                status_code=429,
+                detail="Vous avez atteint la limite d'extraction, merci de réessayer demain.",
+            )
+
         if os.path.exists(temp_path):
             os.remove(temp_path)
         raise HTTPException(status_code=500, detail="Une erreur est survenue lors de l'extraction.")
