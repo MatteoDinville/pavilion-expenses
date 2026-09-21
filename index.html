@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Matrice de frais — saisie assistée</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap"
+		rel="stylesheet">
+	<style>
+		:root {
+			--ink: #17211E;
+			--ink-soft: #5A6560;
+			--paper: #E9EAE4;
+			--sheet: #FFFFFF;
+			--rule: #D2D5CC;
+			--green: #1F5F4B;
+			--green-dark: #164536;
+			--ochre: #8A6A12;
+			--red: #9B2C22;
+			--radius: 4px;
+			--sans: "IBM Plex Sans", system-ui, sans-serif;
+			--serif: "IBM Plex Serif", Georgia, serif;
+			--mono: "IBM Plex Mono", ui-monospace, monospace;
+		}
+
+		* {
+			box-sizing: border-box
+		}
+
+		html,
+		body {
+			margin: 0
+		}
+
+		body {
+			background: var(--paper);
+			color: var(--ink);
+			font-family: var(--sans);
+			font-size: 15px;
+			line-height: 1.5;
+			-webkit-font-smoothing: antialiased;
+		}
+
+		.wrap {
+			max-width: 1080px;
+			margin: 0 auto;
+			padding: 32px 20px 96px
+		}
+
+		/* ---------- en-tête ---------- */
+		.masthead {
+			display: flex;
+			align-items: flex-end;
+			justify-content: space-between;
+			gap: 24px;
+			flex-wrap: wrap;
+			padding-bottom: 18px;
+			border-bottom: 1px solid var(--rule);
+		}
+
+		.masthead h1 {
+			font-family: var(--serif);
+			font-weight: 600;
+			font-size: 30px;
+			letter-spacing: -.015em;
+			margin: 0;
+		}
+
+		.masthead p {
+			margin: 6px 0 0;
+			color: var(--ink-soft);
+			font-size: 14px;
+			max-width: 52ch
+		}
+
+		.target {
+			font-family: var(--mono);
+			font-size: 12px;
+			color: var(--ink-soft);
+			border: 1px solid var(--rule);
+			border-radius: var(--radius);
+			padding: 6px 10px;
+			background: var(--sheet);
+			white-space: nowrap;
+		}
+
+		/* ---------- fil des étapes ---------- */
+		.steps {
+			display: flex;
+			gap: 28px;
+			margin: 22px 0 28px;
+			flex-wrap: wrap
+		}
+
+		.step {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			color: var(--ink-soft);
+			font-size: 14px
+		}
+
+		.step b {
+			width: 23px;
+			height: 23px;
+			border-radius: 50%;
+			border: 1px solid var(--rule);
+			background: var(--sheet);
+			display: grid;
+			place-items: center;
+			font-family: var(--mono);
+			font-size: 12px;
+			font-weight: 500;
+		}
+
+		.step[data-state="active"] {
+			color: var(--ink);
+			font-weight: 500
+		}
+
+		.step[data-state="active"] b {
+			background: var(--ink);
+			color: var(--paper);
+			border-color: var(--ink)
+		}
+
+		.step[data-state="done"] b {
+			background: var(--green);
+			color: #fff;
+			border-color: var(--green)
+		}
+
+		.step[data-state="done"] b::after {
+			content: "✓"
+		}
+
+		.step[data-state="done"] b span {
+			display: none
+		}
+
+		/* ---------- blocs ---------- */
+		.panel {
+			background: var(--sheet);
+			border: 1px solid var(--rule);
+			border-radius: var(--radius);
+		}
+
+		.panel+.panel {
+			margin-top: 20px
+		}
+
+		.panel-head {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 16px;
+			flex-wrap: wrap;
+			padding: 16px 18px;
+			border-bottom: 1px solid var(--rule);
+		}
+
+		.panel-head h2 {
+			font-family: var(--serif);
+			font-size: 18px;
+			font-weight: 600;
+			margin: 0
+		}
+
+		.panel-head p {
+			margin: 3px 0 0;
+			font-size: 13px;
+			color: var(--ink-soft)
+		}
+
+		.hidden {
+			display: none !important
+		}
+
+		/* ---------- dépôt du PDF ---------- */
+		.drop {
+			position: relative;
+			display: block;
+			width: 100%;
+			text-align: left;
+			background: var(--sheet);
+			border: 1px solid var(--rule);
+			border-radius: var(--radius);
+			padding: 34px 28px;
+			cursor: pointer;
+			font: inherit;
+			color: inherit;
+		}
+
+		.drop::before {
+			content: "";
+			position: absolute;
+			inset: 10px;
+			border: 1px dashed var(--rule);
+			border-radius: 2px;
+			pointer-events: none;
+		}
+
+		.drop:hover,
+		.drop:focus-visible {
+			border-color: var(--green)
+		}
+
+		.drop:focus-visible {
+			outline: 2px solid var(--green);
+			outline-offset: 2px
+		}
+
+		.drop.over {
+			border-color: var(--green);
+			background: #F3F7F4
+		}
+
+		.drop.over::before {
+			border-color: var(--green)
+		}
+
+		.drop-inner {
+			position: relative;
+			display: flex;
+			align-items: center;
+			gap: 20px
+		}
+
+		.sheets {
+			position: relative;
+			width: 46px;
+			height: 56px;
+			flex: none
+		}
+
+		.sheets i {
+			position: absolute;
+			inset: 0;
+			background: var(--paper);
+			border: 1px solid var(--rule);
+			border-radius: 2px;
+		}
+
+		.sheets i:nth-child(1) {
+			transform: rotate(-7deg) translate(-3px, 2px)
+		}
+
+		.sheets i:nth-child(2) {
+			transform: rotate(4deg)
+		}
+
+		.sheets i:nth-child(3) {
+			background: var(--sheet)
+		}
+
+		.sheets i:nth-child(3)::after {
+			content: "";
+			position: absolute;
+			left: 8px;
+			right: 8px;
+			top: 12px;
+			height: 1px;
+			background: var(--rule);
+			box-shadow: 0 8px 0 var(--rule), 0 16px 0 var(--rule), 0 24px 0 var(--rule);
+		}
+
+		.drop strong {
+			display: block;
+			font-weight: 600;
+			font-size: 16px
+		}
+
+		.drop span {
+			display: block;
+			color: var(--ink-soft);
+			font-size: 13px;
+			margin-top: 3px
+		}
+
+		.drop .picked {
+			font-family: var(--mono);
+			font-size: 13px;
+			color: var(--green);
+			margin-top: 6px
+		}
+
+		/* ---------- boutons ---------- */
+		button {
+			font: inherit
+		}
+
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			border: 1px solid transparent;
+			border-radius: var(--radius);
+			padding: 10px 18px;
+			font-weight: 500;
+			cursor: pointer;
+			transition: background .12s ease, border-color .12s ease;
+		}
+
+		.btn:focus-visible {
+			outline: 2px solid var(--ink);
+			outline-offset: 2px
+		}
+
+		.btn-ink {
+			background: var(--ink);
+			color: var(--paper)
+		}
+
+		.btn-ink:hover {
+			background: #0C1412
+		}
+
+		.btn-green {
+			background: var(--green);
+			color: #fff
+		}
+
+		.btn-green:hover {
+			background: var(--green-dark)
+		}
+
+		.btn-quiet {
+			background: var(--sheet);
+			border-color: var(--rule);
+			color: var(--ink)
+		}
+
+		.btn-quiet:hover {
+			border-color: var(--ink-soft)
+		}
+
+		.btn[disabled] {
+			opacity: .45;
+			cursor: not-allowed
+		}
+
+		.btn kbd {
+			font-family: var(--mono);
+			font-size: 11px;
+			opacity: .6;
+			border: 1px solid currentColor;
+			border-radius: 3px;
+			padding: 0 4px;
+		}
+
+		.actions {
+			display: flex;
+			gap: 10px;
+			margin-top: 16px;
+			flex-wrap: wrap
+		}
+
+		/* ---------- analyse en cours ---------- */
+		.working {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			padding: 18px
+		}
+
+		.spin {
+			width: 18px;
+			height: 18px;
+			flex: none;
+			border-radius: 50%;
+			border: 2px solid var(--rule);
+			border-top-color: var(--green);
+			animation: spin .8s linear infinite;
+		}
+
+		@keyframes spin {
+			to {
+				transform: rotate(360deg)
+			}
+		}
+
+		.working p {
+			margin: 0;
+			font-size: 14px
+		}
+
+		.working small {
+			display: block;
+			color: var(--ink-soft)
+		}
+
+		/* ---------- registre ---------- */
+		.scroll {
+			overflow-x: auto
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			min-width: 820px
+		}
+
+		th {
+			text-align: left;
+			font-size: 12px;
+			font-weight: 600;
+			color: var(--ink-soft);
+			padding: 10px 12px;
+			border-bottom: 1px solid var(--rule);
+			background: #F7F8F5;
+			position: sticky;
+			top: 0;
+		}
+
+		th.num,
+		td.num {
+			text-align: right
+		}
+
+		td {
+			padding: 0;
+			border-bottom: 1px solid #EAECE6;
+			vertical-align: middle
+		}
+
+		tbody tr {
+			border-left: 2px solid transparent
+		}
+
+		tbody tr.incomplete {
+			border-left-color: var(--ochre);
+			background: #FDFBF4
+		}
+
+		td input {
+			width: 100%;
+			border: 0;
+			background: transparent;
+			padding: 11px 12px;
+			font: inherit;
+			color: inherit;
+			border-radius: 0;
+		}
+
+		td input:focus {
+			outline: 2px solid var(--green);
+			outline-offset: -2px;
+			background: #F3F7F4
+		}
+
+		td input::placeholder {
+			color: #AFB5AD
+		}
+
+		.c-page input,
+		.c-date input,
+		.c-montant input {
+			font-family: var(--mono);
+			font-size: 14px
+		}
+
+		.c-montant input {
+			text-align: right;
+			font-weight: 500
+		}
+
+		.c-libelle input {
+			font-weight: 500
+		}
+
+		.c-del {
+			width: 44px;
+			text-align: center
+		}
+
+		.del {
+			border: 0;
+			background: none;
+			color: #B9BEB7;
+			font-size: 18px;
+			line-height: 1;
+			padding: 6px 10px;
+			cursor: pointer;
+			border-radius: var(--radius);
+		}
+
+		.del:hover {
+			color: var(--red);
+			background: #FBF0EF
+		}
+
+		tfoot td {
+			border-bottom: 0;
+			border-top: 1px solid var(--rule);
+			padding: 12px;
+			font-family: var(--mono);
+			font-size: 14px;
+			background: #F7F8F5;
+		}
+
+		tfoot .label {
+			font-family: var(--sans);
+			color: var(--ink-soft);
+			font-size: 13px
+		}
+
+		.empty {
+			padding: 36px 18px;
+			text-align: center;
+			color: var(--ink-soft);
+			font-size: 14px
+		}
+
+		.flag {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 12px;
+			color: var(--ochre);
+		}
+
+		.flag::before {
+			content: "";
+			width: 7px;
+			height: 7px;
+			background: var(--ochre);
+			border-radius: 50%
+		}
+
+		/* ---------- fin ---------- */
+		.done {
+			border-color: var(--green);
+			background: #F3F7F4
+		}
+
+		.done .panel-head {
+			border-color: #CBDDD4
+		}
+
+		.foot-note {
+			margin-top: 22px;
+			font-size: 12px;
+			color: var(--ink-soft)
+		}
+
+		/* ---------- message flottant ---------- */
+		.toast {
+			position: fixed;
+			left: 50%;
+			bottom: 26px;
+			transform: translate(-50%, 12px);
+			background: var(--ink);
+			color: var(--paper);
+			padding: 12px 18px;
+			border-radius: var(--radius);
+			font-size: 14px;
+			max-width: 90vw;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity .18s ease, transform .18s ease;
+			z-index: 20;
+		}
+
+		.toast.show {
+			opacity: 1;
+			transform: translate(-50%, 0)
+		}
+
+		.toast.error {
+			background: var(--red)
+		}
+
+		@media (max-width:640px) {
+			.wrap {
+				padding: 22px 14px 72px
+			}
+
+			.masthead h1 {
+				font-size: 24px
+			}
+
+			.drop {
+				padding: 24px 18px
+			}
+
+			.drop-inner {
+				gap: 14px
+			}
+		}
+
+		@media (prefers-reduced-motion:reduce) {
+			* {
+				animation-duration: .01ms !important;
+				transition-duration: .01ms !important
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="wrap">
+
+		<header class="masthead">
+			<div>
+				<h1>Saisie des frais manuscrits</h1>
+				<p>Déposez le scan des fiches, corrigez ce qui a été mal lu, enregistrez dans la matrice.</p>
+			</div>
+			<div class="target">→ MATRICE FRAIS.xlsx</div>
+		</header>
+
+		<nav class="steps" aria-label="Progression">
+			<div class="step" id="st1" data-state="active"><b><span>1</span></b>Déposer le PDF</div>
+			<div class="step" id="st2"><b><span>2</span></b>Relire les lignes</div>
+			<div class="step" id="st3"><b><span>3</span></b>Enregistrer</div>
+		</nav>
+
+		<!-- 1 — dépôt -->
+		<section id="uploadSection">
+			<button type="button" class="drop" id="drop">
+				<span class="drop-inner">
+					<span class="sheets" aria-hidden="true"><i></i><i></i><i></i></span>
+					<span>
+						<strong>Glissez le PDF ici, ou cliquez pour le choisir</strong>
+						<span>Une fiche par page, écriture manuscrite acceptée.</span>
+						<span class="picked hidden" id="picked"></span>
+					</span>
+				</span>
+			</button>
+			<input type="file" id="pdfInput" accept="application/pdf" class="hidden">
+			<div class="actions">
+				<button class="btn btn-ink" id="analyzeBtn" disabled>Analyser le document</button>
+				<button class="btn btn-quiet hidden" id="resetBtn">Changer de fichier</button>
+			</div>
+		</section>
+
+		<!-- chargement -->
+		<div class="panel working hidden" id="loader">
+			<div class="spin" aria-hidden="true"></div>
+			<p>Lecture des pages en cours…<small id="loaderNote">Transcription de l'écriture manuscrite.</small></p>
+		</div>
+
+		<!-- 2 — relecture -->
+		<section class="panel hidden" id="reviewSection">
+			<div class="panel-head">
+				<div>
+					<h2>Lignes extraites</h2>
+					<p id="reviewNote">Cliquez dans une cellule pour la corriger.</p>
+				</div>
+				<div style="display:flex;gap:10px;flex-wrap:wrap">
+					<button class="btn btn-quiet" id="addBtn">Ajouter une ligne <kbd>⇧⏎</kbd></button>
+					<button class="btn btn-green" id="saveBtn">Enregistrer dans la matrice</button>
+				</div>
+			</div>
+			<div class="scroll">
+				<table>
+					<thead>
+						<tr>
+							<th style="width:78px">Page</th>
+							<th style="width:120px">Date</th>
+							<th>Facture</th>
+							<th class="num" style="width:120px">Montant</th>
+							<th style="width:200px">Catégorie</th>
+							<th class="c-del"><span class="visually-hidden"></span></th>
+						</tr>
+					</thead>
+					<tbody id="rows"></tbody>
+					<tfoot>
+						<tr>
+							<td colspan="3" class="label" id="countCell">0 ligne</td>
+							<td class="num" id="totalCell">0,00 €</td>
+							<td colspan="2"></td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+			<div class="empty hidden" id="emptyState">Aucune ligne. Ajoutez-en une pour saisir un frais à la main.</div>
+		</section>
+
+		<!-- 3 — terminé -->
+		<section class="panel done hidden" id="downloadSection">
+			<div class="panel-head">
+				<div>
+					<h2>Matrice mise à jour</h2>
+					<p id="savedNote">Les lignes ont été ajoutées au fichier Excel.</p>
+				</div>
+				<a class="btn btn-green" href="/api/download-excel">Télécharger la matrice</a>
+			</div>
+		</section>
+
+		<p class="foot-note">Les montants et les dates sont repris tels qu'écrits sur la fiche. Vérifiez la catégorie :
+			c'est elle qui décide de la colonne dans la matrice.</p>
+	</div>
+
+	<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+	<script>
+		const $ = (id) => document.getElementById(id);
+		const fileInput = $('pdfInput'), drop = $('drop');
+		let selectedFile = null;
+
+		/* --- messages --- */
+		let toastTimer;
+		function toast(msg, isError) {
+			const t = $('toast');
+			t.textContent = msg;
+			t.classList.toggle('error', !!isError);
+			t.classList.add('show');
+			clearTimeout(toastTimer);
+			toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+		}
+
+		function setStep(n) {
+			[1, 2, 3].forEach(i => {
+				const el = $('st' + i);
+				el.dataset.state = i < n ? 'done' : (i === n ? 'active' : '');
+			});
+		}
+
+		/* --- choix du fichier --- */
+		drop.addEventListener('click', () => fileInput.click());
+		['dragenter', 'dragover'].forEach(ev =>
+			drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+		['dragleave', 'drop'].forEach(ev =>
+			drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+		drop.addEventListener('drop', e => takeFile(e.dataTransfer.files[0]));
+		fileInput.addEventListener('change', () => takeFile(fileInput.files[0]));
+
+		function takeFile(file) {
+			if (!file) return;
+			if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+				toast('Ce fichier n\'est pas un PDF. Choisissez un scan au format PDF.', true);
+				return;
+			}
+			selectedFile = file;
+			const ko = Math.round(file.size / 1024);
+			const size = ko > 1024 ? (ko / 1024).toFixed(1) + ' Mo' : ko + ' Ko';
+			$('picked').textContent = file.name + ' · ' + size;
+			$('picked').classList.remove('hidden');
+			$('analyzeBtn').disabled = false;
+			$('resetBtn').classList.remove('hidden');
+		}
+
+		$('resetBtn').addEventListener('click', () => {
+			selectedFile = null; fileInput.value = '';
+			$('picked').classList.add('hidden');
+			$('analyzeBtn').disabled = true;
+			$('resetBtn').classList.add('hidden');
+		});
+
+		/* --- 1. analyse --- */
+		$('analyzeBtn').addEventListener('click', async () => {
+			if (!selectedFile) return;
+			const fd = new FormData();
+			fd.append('file', selectedFile);
+
+			$('analyzeBtn').disabled = true;
+			$('loader').classList.remove('hidden');
+			$('reviewSection').classList.add('hidden');
+			$('downloadSection').classList.add('hidden');
+
+			try {
+				const res = await fetch('/api/extract-only', { method: 'POST', body: fd });
+				const data = await res.json().catch(() => ({}));
+
+				if (!res.ok) {
+					if (res.status === 413) throw new Error('Le fichier est trop volumineux pour être traité.');
+					if (res.status === 400 || res.status === 422) throw new Error('Le document n\'a pas pu être lu. Vérifiez qu\'il s\'agit d\'un PDF valide.');
+					if (res.status >= 500) throw new Error('Un problème technique est survenu lors de l\'analyse du document. Veuillez réessayer.');
+					throw new Error(data.detail || 'La lecture du document a échoué. Veuillez réessayer.');
+				}
+
+				const rows = data.extractions || [];
+				renderRows(rows);
+				$('reviewSection').classList.remove('hidden');
+				setStep(2);
+				$('reviewSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+				toast(rows.length + ' ligne' + (rows.length > 1 ? 's' : '') + ' extraite' + (rows.length > 1 ? 's' : '') + '.');
+			} catch (err) {
+				const userMsg = err.name === 'TypeError'
+					? 'Impossible de contacter le serveur. Vérifiez votre connexion internet.'
+					: err.message;
+				toast(userMsg, true);
+			} finally {
+				$('analyzeBtn').disabled = false;
+				$('loader').classList.add('hidden');
+			}
+		});
+
+		/* --- 2. registre --- */
+		const FIELDS = ['numero_page', 'date', 'facture_nom', 'montant', 'categorie'];
+		const CLASSES = ['c-page', 'c-date', 'c-libelle', 'c-montant', 'c-cat'];
+		const PLACEHOLDERS = ['—', 'jj/mm/aaaa', 'Intitulé de la facture', '0,00', 'Catégorie'];
+
+		function renderRows(items) {
+			$('rows').innerHTML = '';
+			items.forEach(addRow);
+			if (!items.length) addRow();
+			refresh();
+		}
+
+		function addRow(data) {
+			data = data || {};
+			const tr = document.createElement('tr');
+			FIELDS.forEach((f, i) => {
+				const td = document.createElement('td');
+				td.className = CLASSES[i];
+				const input = document.createElement('input');
+				input.type = 'text';
+				input.dataset.field = f;
+				input.placeholder = PLACEHOLDERS[i];
+				input.value = data[f] || '';
+				input.addEventListener('input', refresh);
+				td.appendChild(input);
+				tr.appendChild(td);
+			});
+			const td = document.createElement('td');
+			td.className = 'c-del';
+			const del = document.createElement('button');
+			del.className = 'del';
+			del.type = 'button';
+			del.title = 'Supprimer la ligne';
+			del.textContent = '×';
+			del.addEventListener('click', () => { tr.remove(); refresh(); });
+			td.appendChild(del);
+			tr.appendChild(td);
+			$('rows').appendChild(tr);
+			return tr;
+		}
+
+		function toNumber(str) {
+			const clean = (str || '').replace(/[^\d,.\-]/g, '').replace(',', '.');
+			const n = parseFloat(clean);
+			return isNaN(n) ? 0 : n;
+		}
+
+		function collect() {
+			return [...$('rows').querySelectorAll('tr')].map(tr => {
+				const o = {};
+				tr.querySelectorAll('input').forEach(i => o[i.dataset.field] = i.value.trim());
+				return o;
+			});
+		}
+
+		function refresh() {
+			const rows = [...$('rows').querySelectorAll('tr')];
+			let total = 0, incomplete = 0;
+			rows.forEach(tr => {
+				const o = {};
+				tr.querySelectorAll('input').forEach(i => o[i.dataset.field] = i.value.trim());
+				total += toNumber(o.montant);
+				const missing = !o.date || !o.montant || !o.categorie;
+				tr.classList.toggle('incomplete', missing);
+				if (missing) incomplete++;
+			});
+			$('countCell').textContent = rows.length + (rows.length > 1 ? ' lignes' : ' ligne');
+			$('totalCell').textContent = total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+			$('emptyState').classList.toggle('hidden', rows.length > 0);
+			$('saveBtn').disabled = rows.length === 0;
+			$('reviewNote').innerHTML = incomplete
+				? '<span class="flag">' + incomplete + ' ligne' + (incomplete > 1 ? 's' : '') + ' à compléter : date, montant ou catégorie manquante.</span>'
+				: 'Cliquez dans une cellule pour la corriger.';
+		}
+
+		$('addBtn').addEventListener('click', () => {
+			const tr = addRow();
+			refresh();
+			tr.querySelector('input').focus();
+		});
+
+		document.addEventListener('keydown', e => {
+			if (e.shiftKey && e.key === 'Enter' && !$('reviewSection').classList.contains('hidden')) {
+				e.preventDefault(); $('addBtn').click();
+			}
+		});
+
+		/* --- 3. enregistrement --- */
+		$('saveBtn').addEventListener('click', async () => {
+			const fiches = collect();
+			if (!fiches.length) return;
+
+			const btn = $('saveBtn');
+			const label = btn.textContent;
+			btn.disabled = true;
+			btn.textContent = 'Enregistrement…';
+
+			try {
+				const res = await fetch('/api/confirm-and-fill', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ fiches })
+				});
+				const data = await res.json().catch(() => ({}));
+
+				if (!res.ok) {
+					if (res.status === 400 || res.status === 422) throw new Error('Les données saisies contiennent des erreurs. Veuillez vérifier le tableau.');
+					if (res.status >= 500) throw new Error('Impossible d\'enregistrer dans le fichier Excel pour le moment. Veuillez réessayer.');
+					throw new Error(data.detail || 'L\'écriture dans le fichier Excel a échoué. Veuillez réessayer.');
+				}
+
+				$('savedNote').textContent = fiches.length + ' ligne' + (fiches.length > 1 ? 's ont' : ' a') + ' été ajoutée' + (fiches.length > 1 ? 's' : '') + ' au fichier Excel.';
+				$('downloadSection').classList.remove('hidden');
+				setStep(3);
+				$('st3').dataset.state = 'done';
+				$('downloadSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+				toast('Matrice enregistrée.');
+			} catch (err) {
+				const userMsg = err.name === 'TypeError'
+					? 'Impossible de contacter le serveur. Vérifiez votre connexion internet.'
+					: err.message;
+				toast(userMsg, true);
+			} finally {
+				btn.disabled = false;
+				btn.textContent = label;
+			}
+		});
+	</script>
+</body>
+
+</html>

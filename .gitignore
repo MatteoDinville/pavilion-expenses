@@ -1,0 +1,16 @@
+# Environnement virtuel
+venv/
+.venv/
+
+# Cache Python
+__pycache__/
+
+# Dossier personnel/divers à ignorer
+others/
+
+# Variables d'environnement / Clés d'API
+.env
+
+# Fichiers temporaires ou générés
+*.xlsx
+temp_*
