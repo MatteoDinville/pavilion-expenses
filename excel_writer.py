@@ -69,7 +69,7 @@ def find_best_col(extracted_cat: str, category_map: dict) -> int | None:
 
     return best_col
 
-def generate_monthly_excel(all_records: list[dict], month_year_str: str) -> str:
+def generate_monthly_excel(all_records: list[dict]) -> str:
     """
     Prend toutes les dépenses d'un mois données par Supabase,
     les injecte dans une copie propre du template vierge,
@@ -114,6 +114,6 @@ def generate_monthly_excel(all_records: list[dict], month_year_str: str) -> str:
 
         row += 1
 
-    output_filename = f"MATRICE_FRAIS_{month_year_str}.xlsx"
+    output_filename = f"MATRICE_FRAIS.xlsx"
     wb.save(output_filename)
     return output_filename

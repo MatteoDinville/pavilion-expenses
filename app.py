@@ -1,5 +1,3 @@
-import calendar
-from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -14,9 +12,9 @@ from google import genai
 from google.genai import types
 from google.genai.errors import ServerError
 from pydantic import BaseModel, Field
-from supabase import create_client
 
 from excel_writer import generate_monthly_excel
+from mock import mock_gemini_extraction
 
 # 1. Charger les variables d'environnement avant d'initialiser les services
 load_dotenv()
@@ -38,24 +36,14 @@ logging.basicConfig(
 logger = logging.getLogger("frais_app")
 
 api_key = os.getenv("GEMINI_API_KEY")
-supabase_url = os.getenv("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY")
 
 if not api_key:
     logger.error("La variable GEMINI_API_KEY est introuvable.")
     raise ValueError("Erreur : La variable GEMINI_API_KEY est introuvable.")
-if not supabase_url or not supabase_key:
-    logger.error("SUPABASE_URL ou SUPABASE_KEY est introuvable.")
-    raise ValueError(
-        "Erreur : SUPABASE_URL ou SUPABASE_KEY est introuvable dans le .env."
-    )
 
 # Initialisation des clients API
 client = genai.Client(api_key=api_key)
-supabase = create_client(supabase_url, supabase_key)
-
 app = FastAPI(title="Traitement de Frais Manuscrit")
-
 
 # --- Modèles Pydantic ---
 class DonneeFiche(BaseModel):
@@ -95,6 +83,24 @@ async def serve_favicon_svg():
 @app.post("/api/extract-only")
 async def extract_only(file: UploadFile = File(...)):
     logger.info(f"--- Nouvelle requête d'extraction pour le fichier : {file.filename} ---")
+
+    # MODE MOCK : aucun appel à Gemini
+    if os.getenv("MOCK_GEMINI", "false").lower() == "true":
+        logger.info("🧪 MODE MOCK GEMINI ACTIVÉ")
+
+        time.sleep(2)  # simule le temps de traitement
+
+        extractions = mock_gemini_extraction()
+
+        logger.info(
+            f"Simulation terminée : {len(extractions)} fiche(s) générée(s)."
+        )
+
+        return {
+            "status": "success",
+            "extractions": extractions,
+        }
+
     if not file.filename.endswith(".pdf"):
         logger.warning(f"Fichier rejeté (format non supporté) : {file.filename}")
         raise HTTPException(
@@ -179,7 +185,10 @@ async def extract_only(file: UploadFile = File(...)):
 # --- 2. Route de confirmation et d'enregistrement dans Supabase ---
 @app.post("/api/confirm-and-fill")
 async def confirm_and_fill(payload: ValidationPayload):
-    logger.info(f"--- Requête d'insertion Supabase reçue avec {len(payload.fiches)} fiche(s) ---")
+    logger.info(
+        f"--- Génération Excel demandée avec {len(payload.fiches)} fiche(s) ---"
+    )
+
     try:
         records = [
             {
@@ -192,69 +201,46 @@ async def confirm_and_fill(payload: ValidationPayload):
             for f in payload.fiches
         ]
 
-        for idx, rec in enumerate(records, 1):
-            logger.info(f"  Enregistrement Supabase #{idx} -> {rec}")
+        for idx, record in enumerate(records, 1):
+            logger.info(
+                f"Fiche #{idx} -> "
+                f"Page: {record.get('numero_page')} | "
+                f"Date: {record.get('date')} | "
+                f"Facture: {record.get('facture_nom')} | "
+                f"Montant: {record.get('montant')} | "
+                f"Catégorie: {record.get('categorie')}"
+            )
 
-        # Insertion des données dans Supabase
-        res = supabase.table("depense").insert(records).execute()
-        logger.info(f"Insertion Supabase réussie. Données insérées : {res.data}")
-
-        return {
-            "status": "success",
-            "message": f"{len(records)} ligne(s) enregistrée(s) avec succès dans Supabase !",
-        }
-    except Exception as e:
-        logger.error(f"Erreur lors de l'insertion dans Supabase : {str(e)}")
-        sentry_sdk.capture_exception(e)  # Transmet la stacktrace à Sentry
-        raise HTTPException(status_code=500, detail="Erreur lors de l'enregistrement en base de données.")
-
-
-# --- 3. Route pour générer le fichier Excel mensuel depuis Supabase ---
-@app.get("/api/download-excel")
-async def download_excel():
-    logger.info("--- Requête de génération et téléchargement de la matrice Excel ---")
-    try:
-        now = datetime.now(timezone.utc)
+        # Génération d'un nouveau fichier Excel
+        now = datetime.now()
         month_year_str = now.strftime("%m_%Y")
 
-        # Récupérer les bornes temporelles du mois en cours
-        first_day = datetime(now.year, now.month, 1, 0, 0, 0, tzinfo=timezone.utc)
-        _, last_day_num = calendar.monthrange(now.year, now.month)
-        last_day = datetime(
-            now.year, now.month, last_day_num, 23, 59, 59, tzinfo=timezone.utc
-        )
-
-        logger.info(f"Recherche Supabase filtrée sur 'created_at' entre {first_day.isoformat()} et {last_day.isoformat()}")
-
-        # Récupération de l'ensemble des dépenses insérées ce mois-ci
-        res = (
-            supabase.table("depense")
-            .select("*")
-            .gte("created_at", first_day.isoformat())
-            .lte("created_at", last_day.isoformat())
-            .order("created_at", desc=False)
-            .execute()
-        )
-        current_frais = res.data
-
-        logger.info(f"{len(current_frais)} enregistrement(s) trouvé(s) dans Supabase pour le mois en cours ({month_year_str}).")
-        for idx, item in enumerate(current_frais, 1):
-            logger.info(f"  [Supabase ID: {item.get('id')}] CreatedAt: {item.get('created_at')} | Facture: {item.get('facture_nom')} | Montant: {item.get('montant')} | Cat: {item.get('categorie')}")
-
-        # Générer l'Excel ventilé à partir du modèle vierge MATRICE FRAIS.xlsx
         output_filename = generate_monthly_excel(
-            all_records=current_frais, month_year_str=month_year_str
+            all_records=records,
+            month_year_str=month_year_str,
         )
-        logger.info(f"Fichier Excel généré avec succès : {output_filename}")
+
+        logger.info(
+            f"Fichier Excel généré avec succès : {output_filename}"
+        )
 
         return FileResponse(
             output_filename,
             filename=output_filename,
             media_type=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "application/vnd.openxmlformats-officedocument"
+                ".spreadsheetml.sheet"
             ),
         )
+
     except Exception as e:
-        logger.error(f"Erreur lors du téléchargement de l'Excel : {str(e)}")
-        sentry_sdk.capture_exception(e)  # Transmet la stacktrace à Sentry
-        raise HTTPException(status_code=500, detail="Erreur lors de la génération du fichier Excel.")
+        logger.error(
+            f"Erreur lors de la génération de l'Excel : {str(e)}"
+        )
+
+        sentry_sdk.capture_exception(e)
+
+        raise HTTPException(
+            status_code=500,
+            detail="Erreur lors de la génération du fichier Excel.",
+        )

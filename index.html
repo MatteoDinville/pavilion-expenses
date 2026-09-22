@@ -186,7 +186,7 @@
 		}
 
 		.step[data-state="done"] {
-			color: #a7f3d0;
+			color: #00c068;
 			border-color: rgba(52, 211, 153, 0.4);
 			background: rgba(16, 185, 129, 0.08);
 		}
@@ -364,13 +364,12 @@
 		}
 
 		.btn-quiet {
-			background: rgba(15, 23, 42, 0.7);
 			border-color: var(--border);
 			color: var(--text-main);
 		}
 
 		.btn-quiet:hover:not([disabled]) {
-			background: rgba(30, 41, 59, 0.95);
+			background: rgba(162, 162, 162, 0.95);
 			border-color: rgba(148, 163, 184, 0.26);
 		}
 
@@ -402,6 +401,7 @@
 			align-items: center;
 			gap: 16px;
 			padding: 24px 26px;
+			margin-top: 15px;
 			background: rgba(255, 255, 255, 0.8);
 			border: 1px solid var(--border);
 			border-radius: var(--radius-lg);
@@ -653,7 +653,6 @@
 				</div>
 				<div style="display:flex;gap:10px;flex-wrap:wrap">
 					<button class="btn btn-quiet" id="addBtn">+ Ligne <kbd>Shift + Enter</kbd></button>
-					<button class="btn btn-green" id="saveBtn">Enregistrer dans Excel</button>
 				</div>
 			</div>
 			<div class="scroll">
@@ -685,14 +684,19 @@
 			</div>
 		</section>
 
+		<!-- 3 — Button save and download excel -->
+		<section class="panel">
+			<a class="btn btn-green" href="/api/download-excel">Télécharger le fichier .xlsx</a>
+		</section>
+
 		<!-- 3 — Fin -->
 		<section class="panel done hidden" id="downloadSection">
 			<div class="panel-head">
 				<div>
 					<h2 style="color: var(--accent-green);">Matrice mise à jour avec succès</h2>
-					<p id="savedNote" style="color: var(--text-main);">Les données ont été fusionnées dans Excel.</p>
+					<p id="savedNote" style="color: var(--text-main);">Les données ont été fusionnées dans Excel.
+					</p>
 				</div>
-				<a class="btn btn-green" href="/api/download-excel">Télécharger le fichier .xlsx</a>
 			</div>
 		</section>
 
