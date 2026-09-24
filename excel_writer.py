@@ -29,7 +29,7 @@ def parse_date(date_val):
     if isinstance(date_val, datetime):
         return date_val
     try:
-        # Format ISO (ex: YYYY-MM-DD depuis Supabase)
+        # Format ISO (ex: YYYY-MM-DD)
         return datetime.strptime(str(date_val)[:10], "%Y-%m-%d")
     except ValueError:
         try:
@@ -71,9 +71,7 @@ def find_best_col(extracted_cat: str, category_map: dict) -> int | None:
 
 def generate_monthly_excel(all_records: list[dict]) -> str:
     """
-    Prend toutes les dépenses d'un mois données par Supabase,
-    les injecte dans une copie propre du template vierge,
-    et sauvegarde sous 'MATRICE_FRAIS_MM_YYYY.xlsx'.
+    Injecte les dépenses dans une copie propre du template vierge.
     """
     if not os.path.exists(TEMPLATE_PATH):
         raise FileNotFoundError(f"Le fichier modèle '{TEMPLATE_PATH}' est introuvable à la racine.")
@@ -114,6 +112,6 @@ def generate_monthly_excel(all_records: list[dict]) -> str:
 
         row += 1
 
-    output_filename = f"MATRICE_FRAIS.xlsx"
+    output_filename = "MATRICE_FRAIS.xlsx"
     wb.save(output_filename)
     return output_filename

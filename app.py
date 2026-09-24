@@ -182,7 +182,7 @@ async def extract_only(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="Une erreur est survenue lors de l'extraction.")
 
 
-# --- 2. Route de confirmation et d'enregistrement dans Supabase ---
+# --- 2. Route de validation et d'export Excel ---
 @app.post("/api/confirm-and-fill")
 async def confirm_and_fill(payload: ValidationPayload):
     logger.info(
@@ -200,6 +200,16 @@ async def confirm_and_fill(payload: ValidationPayload):
             }
             for f in payload.fiches
         ]
+        records = [
+            record for record in records
+            if any(value and value.strip() for value in record.values())
+        ]
+
+        if not records:
+            raise HTTPException(
+                status_code=400,
+                detail="Ajoutez au moins une ligne avant de générer le fichier.",
+            )
 
         for idx, record in enumerate(records, 1):
             logger.info(
@@ -211,14 +221,7 @@ async def confirm_and_fill(payload: ValidationPayload):
                 f"Catégorie: {record.get('categorie')}"
             )
 
-        # Génération d'un nouveau fichier Excel
-        now = datetime.now()
-        month_year_str = now.strftime("%m_%Y")
-
-        output_filename = generate_monthly_excel(
-            all_records=records,
-            month_year_str=month_year_str,
-        )
+        output_filename = generate_monthly_excel(all_records=records)
 
         logger.info(
             f"Fichier Excel généré avec succès : {output_filename}"
@@ -233,6 +236,8 @@ async def confirm_and_fill(payload: ValidationPayload):
             ),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             f"Erreur lors de la génération de l'Excel : {str(e)}"
